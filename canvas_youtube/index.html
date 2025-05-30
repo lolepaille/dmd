@@ -190,13 +190,15 @@
             font-size: 1.5rem;
             margin-right: 15px;
         }
+    </style>
+    <style>
     /* Spinner */
     .spinner {
         border: 4px solid #f3f3f3;
         border-top: 4px solid #000054;
         border-radius: 50%;
-        width: 30px;
-        height: 30px;
+        width: 24px;
+        height: 24px;
         animation: spin 1s linear infinite;
         margin: 10px auto;
         display: none;
@@ -208,6 +210,7 @@
     </style>
 </head>
 <body>
+   
     <div class="container">
         <div class="header">
             <h1>Canvas Video Embed Generator</h1>
@@ -217,8 +220,8 @@
         <div class="main-content">
             <div class="input-section">
                 <div class="form-group">
-                    <label for="youtube-url">Enter YouTube Embed URL:</label>
-                    <input type="text" id="youtube-url" placeholder="e.g., https://www.youtube.com/embed/VIDEO_ID">
+                    <label for="youtube-url">Enter YouTube page URL:</label>
+                    <input type="text" id="youtube-url" placeholder="e.g., https://www.youtube.com/watch?v=xxxxxx">
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-top: 20px;">
@@ -236,14 +239,19 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label for="start-time">Start Time (optional):</label>
-                        <input type="text" id="start-time" placeholder="e.g., 1:30 or 90">
-                        <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">Format: MM:SS or seconds</p>
+                        <div id="start-time-selector" style="display:flex; gap:5px; align-items:center;">
+                          <select id="start-hours" style="display:none;"></select>
+                          <select id="start-minutes"></select>
+                          <select id="start-seconds"></select>
+                        </div>
                     </div>
-                    
                     <div class="form-group" style="margin-bottom: 0;">
                         <label for="end-time">End Time (optional):</label>
-                        <input type="text" id="end-time" placeholder="e.g., 5:45 or 345">
-                        <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">Format: MM:SS or seconds</p>
+                        <div id="end-time-selector" style="display:flex; gap:5px; align-items:center;">
+                          <select id="end-hours" style="display:none;"></select>
+                          <select id="end-minutes"></select>
+                          <select id="end-seconds"></select>
+                        </div>
                     </div>
                 </div>
 
@@ -254,7 +262,7 @@
                 
                 <button id="generate-btn" class="btn btn-primary" onclick="generateCode()" style="margin-top: 20px;">Generate HTML Code</button>
             </div>
-            
+             <div id="yt-player" style="width: 100%; height: 360px; margin-bottom: 20px;"></div>
             <div class="output-section" id="output-section">
                 <div class="output-container">
                     <div class="output-header">
@@ -268,17 +276,88 @@
                     <h3>Preview:</h3>
                     <div class="preview-container" id="preview-container"></div>
                 </div>
-                <div class="transcript-section" id="transcript-section" style="display: none; margin-top: 20px;">
-                    <h3>Transcript</h3>
+                <div class="transcript-section" id="transcript-section" style="display: none; padding: 20px; border-top: 1px solid #e3e5e0; margin-top: 20px;">
+                    <h3 id="transcript-status">Transcript</h3>
                     <div id="transcript-spinner" class="spinner"></div>
-                    <pre id="transcript-content" style="background: #f8f9fa; padding: 15px; border: 1px solid #e3e5e0; max-height: 300px; overflow: auto;"></pre>
+                    <div id="transcript-content" style="white-space: pre-wrap; margin-top: 10px;"></div>
                     <p id="transcript-download-link" style="margin-top: 10px;"></p>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
+        let ytPlayer;
+        let videoFullDuration = 0;
+
+        function setVideoDurationField(seconds) {
+            if (!seconds || seconds < 0) return;
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.round(seconds % 60);
+            const formatted = secs < 10 ? `${mins}:0${secs}` : `${mins}:${secs}`;
+            document.getElementById('video-duration').value = formatted;
+            videoFullDuration = seconds;
+        }
+
+        function onYouTubeIframeAPIReady() {
+            const url = document.getElementById('youtube-url').value.trim();
+            const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w\-]{11})/);
+            if (match && match[1]) {
+                ytPlayer = new YT.Player('yt-player', {
+                    videoId: match[1],
+                    events: {
+                        'onReady': event => {
+                            const duration = event.target.getDuration();
+                            setVideoDurationField(duration);
+                        }
+                    }
+                });
+            }
+        }
+
+        // Format seconds as MM:SS
+        function formatSeconds(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s < 10 ? '0'+s : s}`;
+        }
+
+        // Fetch YouTube title via oEmbed
+        async function fetchVideoTitle(url) {
+            try {
+                const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+                const resp = await fetch(oembedUrl);
+                if (!resp.ok) throw new Error('Network response was not ok');
+                const data = await resp.json();
+                return data.title || '';
+            } catch (err) {
+                console.warn('Could not fetch video title:', err);
+                return '';
+            }
+        }
+        // Set start/end from player current time
+        function setStartTimeFromPlayer() {
+            const t = Math.floor(ytPlayer.getCurrentTime());
+            const sh = Math.floor(t / 3600);
+            const sm = Math.floor((t % 3600) / 60);
+            const ss = t % 60;
+            if (document.getElementById('start-hours')) document.getElementById('start-hours').value = sh;
+            if (document.getElementById('start-minutes')) document.getElementById('start-minutes').value = sm;
+            if (document.getElementById('start-seconds')) document.getElementById('start-seconds').value = ss;
+            updateDurationBasedOnStartEnd();
+        }
+        function setEndTimeFromPlayer() {
+            const t = Math.floor(ytPlayer.getCurrentTime());
+            const eh = Math.floor(t / 3600);
+            const em = Math.floor((t % 3600) / 60);
+            const es = t % 60;
+            if (document.getElementById('end-hours')) document.getElementById('end-hours').value = eh;
+            if (document.getElementById('end-minutes')) document.getElementById('end-minutes').value = em;
+            if (document.getElementById('end-seconds')) document.getElementById('end-seconds').value = es;
+            updateDurationBasedOnStartEnd();
+        }
+
         // Fetch transcript from Gladia API using a YouTube URL, with polling
         async function fetchTranscript(audioUrl, apiKey) {
             const initResponse = await fetch('https://api.gladia.io/v2/pre-recorded', {
@@ -309,43 +388,51 @@
                     throw new Error('Transcription failed: ' + JSON.stringify(pollData.error_code));
                 }
             }
-            // Return the full transcript text
-            return finalData.result.transcription.full_transcript;
+            // Return the full JSON data
+            return finalData;
         }
 
         // Helper function to convert time to seconds
         function timeToSeconds(timeStr) {
             if (!timeStr) return null;
-            
-            // If already in seconds (just numbers)
             if (/^\d+$/.test(timeStr)) {
                 return parseInt(timeStr);
             }
-            
-            // If in MM:SS or HH:MM:SS format
             const parts = timeStr.split(':').map(part => parseInt(part));
             if (parts.length === 2) {
-                // MM:SS
                 return parts[0] * 60 + parts[1];
             } else if (parts.length === 3) {
-                // HH:MM:SS
                 return parts[0] * 3600 + parts[1] * 60 + parts[2];
             }
-            
             return null;
         }
         
         async function generateCode() {
             const generateBtn = document.getElementById('generate-btn');
             generateBtn.disabled = true;
-            generateBtn.textContent = 'Generating...';
+            const baseText = 'Generating';
+            const ellipsisArray = ['', '.', '..', '...'];
+            let ellipsisIndex = 0;
+            generateBtn.textContent = baseText + ellipsisArray[ellipsisIndex];
+            const ellipsisInterval = setInterval(() => {
+                ellipsisIndex = (ellipsisIndex + 1) % ellipsisArray.length;
+                generateBtn.textContent = baseText + ellipsisArray[ellipsisIndex];
+            }, 500);
             const originalUrl = document.getElementById('youtube-url').value.trim();
             let youtubeUrl = originalUrl;
             const apiKey = document.getElementById('gladia-api-key').value.trim();
             let videoDuration = document.getElementById('video-duration').value.trim();
             const videoDescription = document.getElementById('video-description').value.trim();
-            const startTime = document.getElementById('start-time').value.trim();
-            const endTime = document.getElementById('end-time').value.trim();
+
+            // Get start/end seconds from selectors
+            const sh = parseInt(document.getElementById('start-hours').value)||0;
+            const sm = parseInt(document.getElementById('start-minutes').value)||0;
+            const ss = parseInt(document.getElementById('start-seconds').value)||0;
+            const startSeconds = sh*3600 + sm*60 + ss;
+            const eh = parseInt(document.getElementById('end-hours').value)||0;
+            const em = parseInt(document.getElementById('end-minutes').value)||0;
+            const es = parseInt(document.getElementById('end-seconds').value)||0;
+            const endSeconds = eh*3600 + em*60 + es;
 
             // Convert normal YouTube URL to embed URL if necessary
             const youtubeMatch = youtubeUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w\-]{11})/);
@@ -358,55 +445,20 @@
                 return;
             }
 
-            // Process start and end times
-            const startSeconds = timeToSeconds(startTime);
-            const endSeconds = timeToSeconds(endTime);
-
             // Add time parameters to URL if provided
-            if (startSeconds !== null || endSeconds !== null) {
-                // Check if URL already has parameters
+            if (startSeconds > 0 || endSeconds > 0) {
                 const separator = youtubeUrl.includes('?') ? '&' : '?';
-
-                if (startSeconds !== null) {
-                    youtubeUrl += `${separator}start=${startSeconds}`;
+                let urlAppended = youtubeUrl;
+                let paramAdded = false;
+                if (startSeconds > 0) {
+                    urlAppended += `${separator}start=${startSeconds}`;
+                    paramAdded = true;
                 }
-
-                if (endSeconds !== null) {
-                    const additionalSeparator = (startSeconds !== null || youtubeUrl.includes('?')) ? '&' : '?';
-                    youtubeUrl += `${additionalSeparator}end=${endSeconds}`;
+                if (endSeconds > 0) {
+                    const additionalSeparator = (paramAdded || youtubeUrl.includes('?')) ? '&' : '?';
+                    urlAppended += `${additionalSeparator}end=${endSeconds}`;
                 }
-            }
-
-            // Optional: Show transcript loading indicator
-            if (apiKey) {
-                document.getElementById('transcript-section').style.display = 'block';
-                document.getElementById('transcript-content').textContent = 'Processing transcript… Please wait.';
-                document.getElementById('transcript-download-link').innerHTML = '';
-                document.getElementById('transcript-spinner').style.display = 'block';
-            }
-
-            // Fetch transcript if API key provided
-            let transcriptText = '';
-            if (apiKey) {
-                transcriptText = await fetchTranscript(originalUrl, apiKey);
-            }
-
-            // Display transcript section if API key
-            if (apiKey) {
-                // Reveal and populate transcript section
-                document.getElementById('transcript-section').style.display = 'block';
-                document.getElementById('transcript-content').textContent = transcriptText || 'No transcript available.';
-                // Create download link
-                const dl = transcriptText
-                    ? `<a href="data:text/plain;charset=utf-8,${encodeURIComponent(transcriptText)}" download="transcript.txt">Download Transcript</a>`
-                    : '';
-                document.getElementById('transcript-download-link').innerHTML = dl;
-                document.getElementById('transcript-spinner').style.display = 'none';
-            }
-
-            let transcriptLinkHTML = '';
-            if (transcriptText) {
-                transcriptLinkHTML = `<p><a href="data:text/plain;charset=utf-8,${encodeURIComponent(transcriptText)}" download="transcript.txt">Download Transcript</a></p>`;
+                youtubeUrl = urlAppended;
             }
 
             // Process video duration - add "mins" if not already present
@@ -450,7 +502,6 @@
         <p>&nbsp;</p>
     </div>
 </div>
-${transcriptLinkHTML}
 <p class="narrow-p">&nbsp;</p>`;
 
             // Display the generated code
@@ -460,8 +511,46 @@ ${transcriptLinkHTML}
             // Show preview
             document.getElementById('preview-container').innerHTML = htmlCode;
 
+            // Show transcript section and fetch transcript asynchronously if API key provided
+            // (must be before clearing interval and enabling button)
+            // If API key provided, start async transcript fetch
+            if (apiKey) {
+                const statusEl = document.getElementById('transcript-status');
+                statusEl.textContent = 'Transcript (processing...)';
+                document.getElementById('transcript-section').style.display = 'block';
+                document.getElementById('transcript-spinner').style.display = 'block';
+                document.getElementById('transcript-content').textContent = '';
+                document.getElementById('transcript-download-link').innerHTML = '';
+                fetchTranscript(originalUrl, apiKey)
+                    .then(data => {
+                        // Support multiple transcript field formats
+                        let text = '';
+                        if (data.result?.transcription?.text) {
+                            text = data.result.transcription.text;
+                        } else if (data.result?.transcription?.full_transcript) {
+                            text = data.result.transcription.full_transcript;
+                        } else if (data.text) {
+                            text = data.text;
+                        }
+                        document.getElementById('transcript-spinner').style.display = 'none';
+                        statusEl.textContent = 'Transcript';
+                        document.getElementById('transcript-content').textContent = text;
+                        document.getElementById('transcript-download-link').innerHTML =
+                          `<a href="data:text/plain;charset=utf-8,${encodeURIComponent(text)}" download="transcript.txt">Download Transcript</a>`;
+                    })
+                    .catch(err => {
+                        document.getElementById('transcript-spinner').style.display = 'none';
+                        statusEl.textContent = 'Transcript (error)';
+                        document.getElementById('transcript-content').textContent = 'Error fetching transcript.';
+                    });
+            } else {
+                // If no API key, hide transcript section
+                document.getElementById('transcript-section').style.display = 'none';
+            }
+
             // Scroll to output
             document.getElementById('output-section').scrollIntoView({ behavior: 'smooth' });
+            clearInterval(ellipsisInterval);
             generateBtn.disabled = false;
             generateBtn.textContent = 'Generate HTML Code';
         }
@@ -503,6 +592,92 @@ ${transcriptLinkHTML}
                 generateCode();
             }
         });
+
+        // Recreate player and update full duration when URL changes
+        document.getElementById('youtube-url').addEventListener('change', async () => {
+            const url = document.getElementById('youtube-url').value.trim();
+            if (ytPlayer) ytPlayer.destroy();
+            onYouTubeIframeAPIReady();
+            // Auto-fill description if empty
+            const descInput = document.getElementById('video-description');
+            if (!descInput.value) {
+                const title = await fetchVideoTitle(url);
+                if (title) descInput.value = title;
+            }
+            initTimeSelectors();
+        });
+
+        // Update displayed duration when start/end change
+        function updateDurationBasedOnStartEnd() {
+            const sh = parseInt(document.getElementById('start-hours').value)||0;
+            const sm = parseInt(document.getElementById('start-minutes').value)||0;
+            const ss = parseInt(document.getElementById('start-seconds').value)||0;
+            const start = sh*3600 + sm*60 + ss;
+            const eh = parseInt(document.getElementById('end-hours').value)||0;
+            const em = parseInt(document.getElementById('end-minutes').value)||0;
+            const es = parseInt(document.getElementById('end-seconds').value)||0;
+            const end = eh*3600 + em*60 + es;
+            if (end >= start) {
+                setVideoDurationField(end - start);
+            }
+        }
+
+        // Attach event listeners to selects for updating duration
+        ['start-hours','start-minutes','start-seconds','end-hours','end-minutes','end-seconds'].forEach(id => {
+            document.addEventListener('DOMContentLoaded', () => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', updateDurationBasedOnStartEnd);
+            });
+            // For dynamically loaded elements, also attach now if present
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', updateDurationBasedOnStartEnd);
+        });
+
+        // Initialize the time selectors for start/end
+        function initTimeSelectors() {
+            const maxHours = Math.floor(videoFullDuration / 3600);
+            const startH = document.getElementById('start-hours');
+            const endH = document.getElementById('end-hours');
+            if (maxHours > 0) {
+                startH.style.display = 'inline';
+                endH.style.display = 'inline';
+                startH.innerHTML = endH.innerHTML = Array.from({length: maxHours+1},(_,i)=>
+                    `<option value="${i}">${i}</option>`).join('');
+            } else {
+                startH.style.display = 'none';
+                endH.style.display = 'none';
+            }
+            const minuteOptions = Array.from({length:60},(_,i)=>
+                `<option value="${i}">${i<10? '0'+i: i}</option>`).join('');
+            ['minutes','seconds'].forEach(type => {
+                document.getElementById(`start-${type}`).innerHTML = minuteOptions;
+                document.getElementById(`end-${type}`).innerHTML = minuteOptions;
+            });
+        }
+
+        // Call initTimeSelectors after YT API ready
+        function afterPlayerReadyInit(event) {
+            const duration = event.target.getDuration();
+            setVideoDurationField(duration);
+            initTimeSelectors();
+        }
+
+        // Patch onYouTubeIframeAPIReady to call initTimeSelectors
+        (function patchYTReady() {
+            const orig = window.onYouTubeIframeAPIReady;
+            window.onYouTubeIframeAPIReady = function() {
+                const url = document.getElementById('youtube-url').value.trim();
+                const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w\-]{11})/);
+                if (match && match[1]) {
+                    ytPlayer = new YT.Player('yt-player', {
+                        videoId: match[1],
+                        events: {
+                            'onReady': afterPlayerReadyInit
+                        }
+                    });
+                }
+            };
+        })();
     </script>
 </body>
 </html>
