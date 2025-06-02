@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoVE Canvas Assessment Template Converter - RMIT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #e3e5e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.6;
+        }
+        
+        .main-wrapper {
+            flex: 1;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #000054;
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .workflow-steps {
+            display: flex;
+            justify-content: center;
+            padding: 30px;
+            background: #f2f2f2;
+            border-bottom: 3px solid #fac800;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            margin: 0 15px;
+            font-weight: 600;
+            color: #000054;
+        }
+        
+        .step-number {
+            width: 30px;
+            height: 30px;
+            background: #000054;
+            color: #ffffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .step.active .step-number {
+            background: #e61e2a;
+        }
+        
+        .step.completed .step-number {
+            background: #28a745;
+        }
+        
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            min-height: 70vh;
+        }
+        
+        .sidebar {
+            background: #f2f2f2;
+            padding: 30px;
+            border-right: 1px solid #e3e5e0;
+        }
+        
+        .content-area {
+            padding: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #000054;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #ffffff;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #e61e2a;
+            background: #f8f9fa;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: #000054;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            font-size: 1.1rem;
+            color: #000054;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .extraction-status {
+            display: none;
+            background: #ffffff;
+            border: 2px solid #fac800;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .extraction-status h3 {
+            color: #000054;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        
+        .status-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .status-icon.found {
+            background: #28a745;
+        }
+        
+        .status-icon.partial {
+            background: #fac800;
+            color: #000054;
+        }
+        
+        .status-icon.missing {
+            background: #e61e2a;
+        }
+        
+        .edit-form {
+            display: none;
+        }
+        
+        .form-section {
+            background: #ffffff;
+            border: 1px solid #e3e5e0;
+            border-radius: 6px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        
+        .form-section h3 {
+            color: #000054;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            border-bottom: 2px solid #fac800;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #000054;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .form-group input[type="text"],
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e3e5e0;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input[type="text"]:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #000054;
+        }
+        
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        /* Rich text editor styles */
+        .rich-editor {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            border: 2px solid #e3e5e0;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.3s;
+            background: #fff;
+            overflow-y: auto;
+            max-height: 400px;
+            position: relative;
+        }
+        
+        .rich-editor:focus {
+            outline: none;
+            border-color: #000054;
+        }
+        
+        .rich-editor p {
+            margin-bottom: 0.5em;
+        }
+        
+        .rich-editor ul, .rich-editor ol {
+            margin-left: 20px;
+            margin-bottom: 0.5em;
+        }
+        
+        .rich-editor li {
+            margin-bottom: 0.3em;
+        }
+        
+        .editor-toolbar {
+            display: flex;
+            gap: 5px;
+            padding: 5px;
+            background: #f8f9fa;
+            border: 2px solid #e3e5e0;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+        }
+        
+        .editor-btn {
+            padding: 5px 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .editor-btn:hover {
+            background: #e3e5e0;
+        }
+        
+        .editor-btn.active {
+            background: #000054;
+            color: white;
+        }
+        
+        .form-group.large .rich-editor {
+            min-height: 200px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .help-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f2f2f2;
+            border-radius: 4px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        
+        .checkbox-group label {
+            cursor: pointer;
+            font-weight: normal;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e3e5e0;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #e61e2a;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #c51923;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #000054;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #000043;
+            transform: translateY(-1px);
+        }
+        
+        .btn:disabled {
+            background: #999;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .output-section {
+            display: none;
+        }
+        
+        .output-container {
+            background: #ffffff;
+            border: 2px solid #e3e5e0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .output-header {
+            background: #000054;
+            color: #ffffff;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .output-content {
+            padding: 20px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            background: #f8f9fa;
+        }
+        
+        .preview-container {
+            background: white;
+            border: 2px solid #e3e5e0;
+            border-radius: 6px;
+            padding: 30px;
+            margin-top: 20px;
+        }
+        
+        .preview-container h3 {
+            color: #000054;
+            margin-bottom: 20px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .alert-warning {
+            background: #fff9e6;
+            border: 1px solid #fac800;
+            color: #856404;
+        }
+        
+        .alert-info {
+            background: #e6f3ff;
+            border: 1px solid #0066cc;
+            color: #004085;
+        }
+        
+        .alert-icon {
+            font-size: 1.5rem;
+            margin-right: 15px;
+        }
+        
+        .loader {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f2f2f2;
+            border-top: 4px solid #e61e2a;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .footer {
+            background: #000054;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+            font-size: 0.95rem;
+        }
+        
+        .footer a {
+            color: #fac800;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .debug-section {
+            background: #f8f9fa;
+            border: 1px solid #e3e5e0;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .debug-section h4 {
+            color: #000054;
+            margin-bottom: 10px;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                border-right: none;
+                border-bottom: 1px solid #e3e5e0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="container">
+            <div class="header">
+                <h1>CoVE Canvas Assessment Template Converter</h1>
+                <p>Extract, Review & Generate Canvas-Ready HTML</p>
+            </div>
+            
+            <div class="workflow-steps">
+                <div class="step active" id="step1">
+                    <div class="step-number">1</div>
+                    <span>Upload Document</span>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">2</div>
+                    <span>Review & Edit</span>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-number">3</div>
+                    <span>Generate HTML</span>
+                </div>
+            </div>
+            
+            <div class="main-layout">
+                <div class="sidebar">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">📄</div>
+                        <div class="upload-text">Upload Assessment Guide</div>
+                        <div class="upload-subtext">Drop .docx file here or click</div>
+                        <input type="file" id="fileInput" class="file-input" accept=".docx">
+                    </div>
+                    
+                    <div class="loader" id="loader"></div>
+                    
+                    <div class="extraction-status" id="extractionStatus">
+                        <h3>📊 Extraction Results</h3>
+                        <div id="statusList"></div>
+                    </div>
+                </div>
+                
+                <div class="content-area">
+                    <!-- Initial Instructions -->
+                    <div id="initialInstructions">
+                        <h2 style="color: #000054; margin-bottom: 20px;">How to Use This Tool</h2>
+                        <ol style="font-size: 1.1rem; line-height: 1.8;">
+                            <li><strong>Upload</strong> your Word assessment guide (.docx)</li>
+                            <li><strong>Review</strong> the automatically extracted content</li>
+                            <li><strong>Edit</strong> any fields that need correction with rich text editing</li>
+                            <li><strong>Generate</strong> your Canvas HTML with one click</li>
+                        </ol>
+                        <div class="alert alert-warning" style="margin-top: 30px;">
+                            <div class="alert-icon">💡</div>
+                            <div>
+                                <strong>New Feature:</strong> Rich text editing is now available for content fields - add bold, italic, and lists with the toolbar buttons!
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Edit Form -->
+                    <div class="edit-form" id="editForm">
+                        <h2 style="color: #000054; margin-bottom: 25px;">Review & Edit Extracted Content</h2>
+                        
+                        <div class="alert alert-info" style="margin-bottom: 25px;">
+                            <div class="alert-icon">ℹ️</div>
+                            <div>
+                                <strong>Note:</strong> We've extracted as much as possible from your document. Please review all fields and make any necessary corrections before generating the HTML. Use the toolbar buttons to add formatting as needed.
+                            </div>
+                        </div>
+                        
+                        <form id="assessmentForm">
+                            <!-- Section 1: Task & Compliance Information (MOVED TO TOP) -->
+                            <div class="form-section">
+                                <h3>📋 Task & Compliance Information</h3>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Task Number</label>
+                                        <input type="text" id="taskNumber" name="taskNumber" placeholder="e.g., 1, 2, 3">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Task Name</label>
+                                        <input type="text" id="taskName" name="taskName" placeholder="e.g., Portfolio presentation">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>National Unit Code</label>
+                                        <input type="text" id="unitCode" name="unitCode" placeholder="e.g., CUAACD311">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>National Unit Title</label>
+                                        <input type="text" id="unitTitle" name="unitTitle" placeholder="e.g., Produce drawings to communicate ideas">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>National Qualification Code</label>
+                                        <input type="text" id="qualificationCode" name="qualificationCode" placeholder="e.g., MSF40122">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>RMIT Program Code</label>
+                                        <input type="text" id="programCode" name="programCode" placeholder="e.g., C4431">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>RMIT Course Code</label>
+                                    <input type="text" id="courseCode" name="courseCode" placeholder="e.g., VART6528C">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Assessment Type</label>
+                                    <select id="assessmentType" name="assessmentType" required style="width: 100%; padding: 10px; border: 2px solid #e3e5e0; border-radius: 4px; background: #fafbfc; font-size: 0.95rem;">
+                                        <option value="" disabled selected>Please select</option>
+                                        <option value="document">Document Submission</option>
+                                        <option value="quiz">Quiz</option>
+                                    </select>
+                                    <p class="help-text">Select quiz if this is an online test/quiz, otherwise leave as document submission</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Section 2: Task Instructions -->
+                            <div class="form-section">
+                                <h3>📝 Task Instructions</h3>
+                                
+                                <div class="form-group large">
+                                    <label>Task Instructions</label>
+                                    <div class="editor-toolbar">
+                                        <button type="button" class="editor-btn" onclick="formatText('bold')" title="Bold">B</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('italic')" title="Italic">I</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('insertUnorderedList')" title="Bullet List">• List</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('insertOrderedList')" title="Numbered List">1. List</button>
+                                    </div>
+                                    <div id="taskInstructions" class="rich-editor" contenteditable="true" data-placeholder="Copy from Summary and Purpose of Assessment (consider the first paragraph of 'what')."></div>
+                                    <p class="help-text">The main instructions for the assessment task (includes what students need to do)</p>
+                                </div>
+                                
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="includeTemplate" name="includeTemplate">
+                                    <label for="includeTemplate">Include Student Response Template section (check if guide mentions "templates")</label>
+                                </div>
+                            </div>
+                            
+                            <!-- Section 3: Conditions -->
+                            <div class="form-section">
+                                <h3>⏱️ Conditions for Assessment</h3>
+                                
+                                <div class="form-group large">
+                                    <label>Assessment Conditions</label>
+                                    <div class="editor-toolbar">
+                                        <button type="button" class="editor-btn" onclick="formatText('bold', 'conditions')" title="Bold">B</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('italic', 'conditions')" title="Italic">I</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('insertUnorderedList', 'conditions')" title="Bullet List">• List</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('insertOrderedList', 'conditions')" title="Numbered List">1. List</button>
+                                    </div>
+                                    <div id="conditions" class="rich-editor" contenteditable="true" data-placeholder="Copy from Conditions for assessment section (do not include duplicate useful links if they are present)."></div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Equipment/Resources Students Must Supply</label>
+                                    <div class="editor-toolbar">
+                                        <button type="button" class="editor-btn" onclick="formatText('bold', 'studentSupplies')" title="Bold">B</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('italic', 'studentSupplies')" title="Italic">I</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('insertUnorderedList', 'studentSupplies')" title="Bullet List">• List</button>
+                                    </div>
+                                    <div id="studentSupplies" class="rich-editor" contenteditable="true" data-placeholder="• Item 1&#10;• Item 2&#10;• Item 3"></div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label>Equipment/Resources Provided by RMIT</label>
+                                    <div class="editor-toolbar">
+                                        <button type="button" class="editor-btn" onclick="formatText('bold', 'rmitSupplies')" title="Bold">B</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('italic', 'rmitSupplies')" title="Italic">I</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('insertUnorderedList', 'rmitSupplies')" title="Bullet List">• List</button>
+                                    </div>
+                                    <div id="rmitSupplies" class="rich-editor" contenteditable="true" data-placeholder="• Item 1&#10;• Item 2&#10;• Item 3"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Section 4: Submission -->
+                            <div class="form-section">
+                                <h3>📤 Submission Instructions</h3>
+                                
+                                <div class="form-group large">
+                                    <label>Submission Instructions</label>
+                                    <div class="editor-toolbar">
+                                        <button type="button" class="editor-btn" onclick="formatText('bold', 'submissionInstructions')" title="Bold">B</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('italic', 'submissionInstructions')" title="Italic">I</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('insertUnorderedList', 'submissionInstructions')" title="Bullet List">• List</button>
+                                        <button type="button" class="editor-btn" onclick="formatText('insertOrderedList', 'submissionInstructions')" title="Numbered List">1. List</button>
+                                    </div>
+                                    <div id="submissionInstructions" class="rich-editor" contenteditable="true" data-placeholder="Copy from Instructions on submitting your task"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="button-group">
+                                <button type="button" class="btn btn-primary" onclick="generateHTML()">Generate Canvas HTML</button>
+                                <button type="button" class="btn btn-secondary" onclick="resetForm()">Start Over</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Output Section -->
+                    <div class="output-section" id="outputSection">
+                        <h2 style="color: #000054; margin-bottom: 25px;">Generated Canvas HTML</h2>
+                        
+                        <div class="output-container">
+                            <div class="output-header">
+                                <span>Canvas HTML Code</span>
+                                <button class="btn btn-primary" style="padding: 8px 20px; font-size: 0.9rem;" onclick="copyHTML()">Copy HTML</button>
+                            </div>
+                            <div class="output-content" id="outputContent"></div>
+                        </div>
+                        
+                        <div class="preview-container">
+                            <h3>Preview</h3>
+                            <div id="previewContent"></div>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button type="button" class="btn btn-secondary" onclick="backToEdit()">Back to Edit</button>
+                            <button type="button" class="btn btn-primary" onclick="resetForm()">New Document</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p>Design: Learning & Teaching Innovation Team - RMIT College of Vocational Education</p>
+    </footer>
+
+    <script>
+        // Add paste handler to prevent unwanted formatting
+        document.querySelectorAll('.rich-editor').forEach(editor => {
+            editor.addEventListener('paste', function(e) {
+                e.preventDefault();
+                
+                // Get plain text from clipboard
+                const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                
+                // Insert as plain text
+                document.execCommand('insertText', false, text);
+            });
+            
+            // Handle empty state for placeholder
+            editor.addEventListener('input', function() {
+                if (this.innerHTML === '<br>' || this.innerHTML === '') {
+                    this.innerHTML = '';
+                }
+            });
+        });
+        document.querySelectorAll('.rich-editor').forEach(editor => {
+            // No need for empty class handling anymore
+        });
+        
+        // Format text function
+        function formatText(command, editorId = 'taskInstructions') {
+            const editor = document.getElementById(editorId);
+            editor.focus();
+            
+            // Remove any bold formatting if we're not explicitly adding bold
+            if (command !== 'bold') {
+                // Save current selection
+                const selection = window.getSelection();
+                const range = selection.getRangeAt(0);
+                
+                // Remove bold from the current selection
+                document.execCommand('removeFormat', false, null);
+                
+                // Restore selection
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+            
+            document.execCommand(command, false, null);
+        }
+        
+        // Clean HTML function to remove unwanted attributes
+        function cleanHTML(html) {
+            // Create a temporary div to manipulate the HTML
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            
+            // Remove all style attributes
+            temp.querySelectorAll('*[style]').forEach(el => el.removeAttribute('style'));
+            
+            // Remove empty paragraphs
+            temp.querySelectorAll('p').forEach(p => {
+                if (p.innerHTML.trim() === '' || p.innerHTML === '&nbsp;') {
+                    p.remove();
+                }
+            });
+            
+            return temp.innerHTML;
+        }
+        
+        class CanvasConverter {
+            constructor() {
+                this.uploadArea = document.getElementById('uploadArea');
+                this.fileInput = document.getElementById('fileInput');
+                this.loader = document.getElementById('loader');
+                this.extractionStatus = document.getElementById('extractionStatus');
+                this.statusList = document.getElementById('statusList');
+                this.initialInstructions = document.getElementById('initialInstructions');
+                this.editForm = document.getElementById('editForm');
+                this.outputSection = document.getElementById('outputSection');
+                this.debugSection = document.getElementById('debugSection');
+                this.debugContent = document.getElementById('debugContent');
+                
+                this.extractedData = {};
+                this.initializeEvents();
+            }
+            
+            initializeEvents() {
+                // File upload
+                this.uploadArea.addEventListener('click', () => this.fileInput.click());
+                this.fileInput.addEventListener('change', (e) => this.handleFile(e.target.files[0]));
+                
+                // Drag and drop
+                this.uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.add('dragover');
+                });
+                
+                this.uploadArea.addEventListener('dragleave', () => {
+                    this.uploadArea.classList.remove('dragover');
+                });
+                
+                this.uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.remove('dragover');
+                    this.handleFile(e.dataTransfer.files[0]);
+                });
+            }
+            
+            async handleFile(file) {
+                if (!file || !file.name.endsWith('.docx')) {
+                    alert('Please upload a .docx file');
+                    return;
+                }
+                
+                this.loader.style.display = 'block';
+                this.updateStep(1, 'active');
+                
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const result = await mammoth.extractRawText({arrayBuffer});
+                    
+                    this.extractedData = this.extractContent(result.value);
+                    this.displayExtractionStatus();
+                    this.populateForm();
+                    this.showEditForm();
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error processing document. Please try again.');
+                } finally {
+                    this.loader.style.display = 'none';
+                }
+            }
+            
+            extractContent(text) {
+                const data = {
+                    taskInstructions: '',
+                    taskNumber: '',
+                    taskName: '',
+                    includeTemplate: false,
+                    conditions: '',
+                    studentSupplies: '',
+                    rmitSupplies: '',
+                    submissionInstructions: '',
+                    assessmentType: '',
+                    unitCode: '',
+                    unitTitle: '',
+                    qualificationCode: '',
+                    programCode: '',
+                    courseCode: ''
+                };
+                
+                // Enhanced extraction for table-based documents
+                const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+                
+                // Extract from table structure - look for patterns like "Task Number 1 of 3"
+                const taskNumberMatch = text.match(/Task\s*Number\s*(\d+)\s*of\s*\d+/i);
+                if (taskNumberMatch) {
+                    data.taskNumber = taskNumberMatch[1];
+                }
+                
+                // Extract task name - look for pattern after "Task Name"
+                const taskNameMatch = text.match(/Task\s*Name\s*([^\n]+)/i);
+                if (taskNameMatch) {
+                    data.taskName = taskNameMatch[1].trim();
+                }
+                
+                // Extract unit code and title
+                const unitCodeMatch = text.match(/National\s*unit[/\s]*s?\s*code\s*([A-Z0-9]+)/i);
+                if (unitCodeMatch) {
+                    data.unitCode = unitCodeMatch[1];
+                }
+                
+                const unitTitleMatch = text.match(/National\s*unit[/\s]*s?\s*title\s*([^\n]+)/i);
+                if (unitTitleMatch) {
+                    data.unitTitle = unitTitleMatch[1].trim();
+                }
+                
+                // Extract qualification code
+                const qualCodeMatch = text.match(/National\s*qualifications?\s*codes?\s*[:\s]*([A-Z0-9]+)/i);
+                if (qualCodeMatch) {
+                    data.qualificationCode = qualCodeMatch[1];
+                }
+                
+                // Extract RMIT codes (allow optional plural and colon/space separators)
+                const rmitProgramMatch = text.match(/RMIT\s*Programs?\s*codes?\s*[:\s]*([A-Z0-9]+)/i);
+                if (rmitProgramMatch) {
+                    data.programCode = rmitProgramMatch[1];
+                }
+
+                const rmitCourseMatch = text.match(/RMIT\s*Courses?\s*codes?\s*[:\s]*([A-Z0-9]+)/i);
+                if (rmitCourseMatch) {
+                    data.courseCode = rmitCourseMatch[1];
+                }
+                
+                // Extract task instructions from "Summary and Purpose of Assessment" up to "What"
+                const taskInstrMatch = text.match(/Summary\s+and\s+Purpose\s+of\s+Assessment\s*([\s\S]*?)\s*What/i);
+                if (taskInstrMatch) {
+                    data.taskInstructions = taskInstrMatch[1].trim().replace(/\s+/g, ' ');
+                }
+                
+                // Extract conditions from "Conditions for assessment" up to the next section, strip links, enforce bullets
+                const conditionsMatch = text.match(/Conditions\s*for\s*assessment\s*([\s\S]*?)(?=(?:Instructions\s*on\s*submitting|Equipment\/resources|$))/i);
+                if (conditionsMatch) {
+                    let lines = conditionsMatch[1].trim().split('\n');
+                    // Remove any URLs and whitespace, then filter out empty lines
+                    let bullets = lines
+                        .map(line => line.replace(/https?:\/\/\S+/g, '').trim())
+                        .filter(line => line);
+                    // Ensure each line starts with a dash
+                    bullets = bullets.map(line => line.startsWith('-') ? line : '- ' + line);
+                    if (bullets.length) {
+                        data.conditions = bullets.join('\n');
+                    }
+                }
+                
+                // Extract Equipment/Resources Students Must Supply from the cell after "Equipment/resources students must supply (if applicable):"
+                const studentSuppliesMatch = text.match(/Equipment\/resources\s*students\s*must\s*supply\s*\(if applicable\):\s*([\s\S]*?)(?=(?:Equipment\/resources\s*to\s*be\s*provided|Submission|$))/i);
+                if (studentSuppliesMatch) {
+                    let lines = studentSuppliesMatch[1].trim().split(/\r?\n/);
+                    // Remove any URLs and whitespace, then filter out lines with actual content
+                    let bullets = lines
+                        .map(line => line.replace(/https?:\/\/\S+/g, '').trim())
+                        .filter(line => line);
+                    // Prefix each line with a bullet symbol
+                    bullets = bullets.map(line => line.startsWith('•') ? line : '• ' + line);
+                    if (bullets.length) {
+                        data.studentSupplies = bullets.join('\n');
+                    }
+                }
+
+                // Extract Equipment/Resources Provided by RMIT or the workplace (if applicable)
+                const rmitSuppliesMatch = text.match(/Equipment\/resources\s*to\s*be\s*provided\s*by\s*RMIT\s*or\s*the\s*workplace\s*\(if applicable\):\s*([\s\S]*?)(?=(?:Section\s*B|$))/i);
+                if (rmitSuppliesMatch) {
+                    let lines = rmitSuppliesMatch[1].trim().split(/\r?\n/);
+                    // Remove any URLs and whitespace, then filter out empty lines
+                    let bullets = lines
+                        .map(line => line.replace(/https?:\/\/\S+/g, '').replace(/^[\s\-\u2022]+/, '').trim())
+                        .filter(line => line);
+                    // Prefix each line with a bullet symbol
+                    bullets = bullets.map(line => '• ' + line);
+                    if (bullets.length) {
+                        data.rmitSupplies = bullets.join('\n');
+                    }
+                }
+                
+                // Extract Submission Instructions from "Instructions on submitting" up to the next blank line
+                const submissionMatch = text.match(/Instructions\s*on\s*submitting[^\n]*[:\-]*\s*([\s\S]*?)(?=\n\s*\n|$)/i);
+                if (submissionMatch) {
+                    // Capture all lines until a blank line, then join into a single string
+                    let lines = submissionMatch[1].trim().split(/\r?\n/);
+                    data.submissionInstructions = lines.map(line => line.trim()).join(' ');
+                }
+                
+                // Check for templates
+                data.includeTemplate = text.toLowerCase().includes('response template') || 
+                                      text.toLowerCase().includes('student template');
+                
+                // Detect assessment type - be more specific
+                const lowerText = text.toLowerCase();
+                const isQuiz = lowerText.includes('quiz') || 
+                              lowerText.includes('online test') || 
+                              lowerText.includes('multiple choice') ||
+                              lowerText.includes('take the quiz') ||
+                              lowerText.includes('online quiz') ||
+                              lowerText.includes('complete the quiz') ||
+                              lowerText.includes('submit quiz') ||
+                              lowerText.includes('online assessment that will be completed via canvas') ||
+                              lowerText.includes('assessment will be conducted via canvas and completed online') ||
+                              lowerText.includes('conducted via canvas');
+                data.assessmentType = isQuiz ? 'quiz' : '';
+                
+                return data;
+            }
+            
+            displayExtractionStatus() {
+                const status = [];
+                const data = this.extractedData;
+                
+                // Check what was found
+                status.push({
+                    icon: data.taskNumber ? 'found' : 'missing',
+                    text: 'Task Number'
+                });
+                
+                status.push({
+                    icon: data.taskName ? 'found' : 'missing',
+                    text: 'Task Name'
+                });
+                
+                status.push({
+                    icon: data.taskInstructions ? 'found' : 'missing',
+                    text: 'Task Instructions'
+                });
+                
+                status.push({
+                    icon: data.unitCode ? 'found' : 'missing',
+                    text: 'Unit Code'
+                });
+                
+                status.push({
+                    icon: data.conditions ? 'found' : 'missing',
+                    text: 'Assessment Conditions'
+                });
+                
+                status.push({
+                    icon: (data.studentSupplies || data.rmitSupplies) ? 'found' : 'missing',
+                    text: 'Equipment/Resources'
+                });
+                
+                // Display status
+                this.statusList.innerHTML = status.map(item => `
+                    <div class="status-item">
+                        <div class="status-icon ${item.icon}">
+                            ${item.icon === 'found' ? '✓' : item.icon === 'partial' ? '!' : '✗'}
+                        </div>
+                        <span>${item.text}</span>
+                    </div>
+                `).join('');
+                
+                this.extractionStatus.style.display = 'block';
+            }
+            
+            populateForm() {
+                const data = this.extractedData;
+                const form = document.getElementById('assessmentForm');
+                
+                // Populate text fields
+                ['taskNumber', 'taskName', 'unitCode', 'unitTitle', 'qualificationCode', 'programCode', 'courseCode'].forEach(field => {
+                    if (form.elements[field] && data[field]) {
+                        form.elements[field].value = data[field];
+                    }
+                });
+                
+                // Populate rich text editors - convert plain text to basic HTML
+                ['taskInstructions', 'conditions', 'studentSupplies', 'rmitSupplies', 'submissionInstructions'].forEach(field => {
+                    const editor = document.getElementById(field);
+                    if (editor && data[field]) {
+                        // Convert line breaks to paragraphs and bullet points to lists
+                        let content = data[field];
+                        
+                        // Check if it's bullet points
+                        if (content.includes('\n-') || content.startsWith('-')) {
+                            const items = content.split('\n')
+                                .filter(line => line.trim())
+                                .map(line => line.replace(/^-\s*/, '').trim());
+                            content = '<ul>' + items.map(item => `<li>${item}</li>`).join('') + '</ul>';
+                        } else {
+                            // Convert to paragraphs
+                            content = content.split('\n')
+                                .filter(line => line.trim())
+                                .map(line => `<p>${line}</p>`)
+                                .join('');
+                        }
+                        
+                        editor.innerHTML = content;
+                        editor.classList.remove('empty');
+                    }
+                });
+                
+                // Set checkboxes and selects
+                if (data.includeTemplate) {
+                    form.elements.includeTemplate.checked = true;
+                }
+                
+                if (data.assessmentType) {
+                    form.elements.assessmentType.value = data.assessmentType;
+                }
+            }
+            
+            showEditForm() {
+                this.updateStep(1, 'completed');
+                this.updateStep(2, 'active');
+                this.initialInstructions.style.display = 'none';
+                this.editForm.style.display = 'block';
+                this.outputSection.style.display = 'none';
+            }
+            
+            updateStep(stepNum, status) {
+                const step = document.getElementById(`step${stepNum}`);
+                step.classList.remove('active', 'completed');
+                if (status) step.classList.add(status);
+            }
+        }
+        
+        // Global functions
+        function generateHTML() {
+            const form = document.getElementById('assessmentForm');
+            const selectedType = form.elements.assessmentType.value;
+            if (!selectedType) {
+                alert('Please select an assessment type.');
+                return;
+            }
+            const data = {};
+            
+            // Get text field values
+            ['taskNumber', 'taskName', 'unitCode', 'unitTitle', 'qualificationCode', 'programCode', 'courseCode'].forEach(field => {
+                data[field] = form.elements[field].value;
+            });
+            
+            // Get rich text editor content
+            ['taskInstructions', 'conditions', 'studentSupplies', 'rmitSupplies', 'submissionInstructions'].forEach(field => {
+                const editor = document.getElementById(field);
+                data[field] = cleanHTML(editor.innerHTML);
+            });
+            
+            // Get checkbox and select values
+            data.includeTemplate = form.elements.includeTemplate.checked;
+            data.assessmentType = form.elements.assessmentType.value;
+            
+            // Generate the HTML following the exact template structure
+            let html = `<div id="emble-customise-6c7e686a" class="customise emble emble-cblock emble-width-control fullwidth-on emble-cblock-boxshadow white" data-context-menu="customise delete" data-customise="color-block-shadow color-block-theme cblock-fullwidth dsc-cblock-border-colour dsc-cblock-border-style" data-emble-version="2.0">
+<div id="emble-customise-38d14b77" class="emble-icon small wrap yellow square emble-prevent-insert emble-prevent-delete-recursive emble-content-editable-false" data-context-menu="customise delete" data-customise="icon-shape icon icon-wrap icon-size icon-colour-options" data-emble-name="Icon" data-icon="icon-circle-arrow-down icon-image icon-courses icon-attach-media icon-video icon-edit icon-document icon-pdf icon-audio icon-arrow-end icon-assignment icon-calendar-month icon-chat icon-group icon-flag" data-emble-version="2.0"><i class="icon-download">&nbsp;</i></div>
+<h3><br />Task instructions</h3>
+<p>&nbsp;</p>
+${data.taskInstructions || '<p><span style="background-color: #fac800;">Copy from Summary and Purpose of Assessment (consider the first paragraph of \'what\').</span></p>'}
+<p>&nbsp;</p>`;
+
+            // Only add download section if NOT a quiz
+            if (data.assessmentType !== 'quiz') {
+                html += `<p><strong>Download detailed task instructions</strong></p>
+<p id="emble-customise-7538f67e" class="btn emble-btn btn-blue customise emble-prevent-delete-recursive" data-context-menu="customise rce-link rce-course-links delete" data-customise="icon button-theme" data-emble-name="Button" data-emble-version="2.0"><i class="icon-circle-arrow-down">&nbsp;</i> <strong>Student Version: AT${data.taskNumber || '[Task Number]'}</strong></p>`;
+            }
+
+            // Add template section if checked (and not a quiz)
+            if (data.includeTemplate && data.assessmentType !== 'quiz') {
+                html += `
+<p><strong>Student Response Template</strong></p>
+<p>(Download and complete for final submission by due date)</p>
+<p id="emble-customise-5d42da95" class="btn emble-btn btn-blue customise emble-prevent-delete-recursive" data-context-menu="customise rce-link rce-course-links delete" data-customise="icon button-theme" data-emble-name="Button" data-emble-version="2.0"><i class="icon-circle-arrow-down">&nbsp;</i> <strong>Student Response Template: AT${data.taskNumber || '[Task Number]'}</strong></p>`;
+            }
+
+            html += `
+</div>
+<p class="narrow-p">&nbsp;</p>
+
+<div id="emble-customise-ccf6c49e" class="customise emble emble-cblock emble-width-control fullwidth-on white emble-cblock-boxshadow" data-context-menu="customise delete" data-customise="color-block-shadow color-block-theme cblock-fullwidth dsc-cblock-border-colour dsc-cblock-border-style" data-emble-version="2.0">
+<div id="emble-customise-fc8de3c6" class="emble-icon small wrap yellow square emble-prevent-insert emble-prevent-delete-recursive emble-content-editable-false" data-context-menu="customise delete" data-customise="icon-shape icon icon-wrap icon-size icon-colour-options" data-emble-name="Icon" data-icon="icon-circle-arrow-down icon-image icon-courses icon-attach-media icon-video icon-edit icon-document icon-pdf icon-audio icon-arrow-end icon-assignment icon-calendar-month icon-chat icon-group icon-flag" data-emble-version="2.0"><i class="icon-hour-glass">&nbsp;</i></div>
+<h3><br />Conditions for assessment</h3>
+<p>&nbsp;</p>
+${data.conditions || '<p><span style="background-color: #fac800;">Copy from Conditions for assessment section (do not include duplicate useful links if they are present).</span></p>'}
+<p>&nbsp;</p>
+<details>
+<summary style="cursor: pointer; font-size: 14pt; color: #222160; font-family: Helvetica, sans-serif; background-color: #f5f5f5; padding: 10px; margin-bottom: 5px;" aria-expanded="false" aria-label="Toggle details for Heading 1"><span style="font-size: 12pt;">Equipment/resources students must supply</span></summary>
+${data.studentSupplies || '<p><span style="background-color: #fac800;">Copy as a bulleted list</span></p>'}
+<p>&nbsp;</p>
+</details><details>
+<summary style="cursor: pointer; font-size: 14pt; color: #222160; font-family: Helvetica, sans-serif; background-color: #f5f5f5; padding: 10px; margin-bottom: 5px;" aria-expanded="false" aria-label="Toggle details for Heading 1"><span style="font-size: 12pt;">Equipment/resources to be provided by RMIT or the workplace</span></summary>
+${data.rmitSupplies || '<p><span style="background-color: #fac800;">Copy as a bulleted list</span></p>'}
+<p>&nbsp;</p>
+</details></div>
+<p class="narrow-p">&nbsp;</p>
+
+<div id="emble-customise-c31a0397" class="customise emble emble-cblock emble-width-control fullwidth-on white emble-cblock-boxshadow" data-context-menu="customise delete" data-customise="color-block-shadow color-block-theme cblock-fullwidth dsc-cblock-border-colour dsc-cblock-border-style" data-emble-version="2.0">
+<div id="emble-customise-a356f3e8" class="emble-icon small wrap emble-prevent-insert emble-prevent-delete-recursive emble-content-editable-false square yellow" data-context-menu="customise delete" data-customise="icon-shape icon icon-wrap icon-size icon-colour-options" data-emble-name="Icon" data-icon="icon-circle-arrow-down icon-image icon-courses icon-attach-media icon-video icon-edit icon-document icon-pdf icon-audio icon-arrow-end icon-assignment icon-calendar-month icon-chat icon-group icon-flag" data-emble-version="2.0"><i class="icon-info">&nbsp;</i></div>
+<h3><br />Instructions on submitting your assessment</h3>
+${data.submissionInstructions ? `<p>${data.submissionInstructions}</p>` : '<p><span style="background-color: #fac800;">Copy from Instructions on submitting your task</span></p>'}`;
+
+            // Add step-by-step instructions based on assessment type
+            if (data.assessmentType === 'quiz') {
+                html += `
+<p><strong>Step-by-Step Submission Instructions:</strong></p>
+<ol>
+<li>Select Take the quiz</li>
+<li>Enter answers for each question.</li>
+<li>When you have finished, select the Submit quiz button.</li>
+<li>Note: Once you select the Submit quiz button you will not be able to make any changes to this attempt.</li>
+<li>For questions that require manual grading (e.g. essay type questions), you will have to wait until your assessor marks these.</li>
+<li>If required, you must wait until your assignment is graded by your teachers before beginning another attempt.</li>
+</ol>`;
+            } else {
+                html += `
+<p><strong>Step-by-Step Submission Instructions:</strong></p>
+<ol>
+<li>Select Start assignment</li>
+<li>Select Choose File</li>
+<li>Locate and select your final completed assessment file (named as per the naming convention)</li>
+<li>Add any comments, if required</li>
+<li>Select Submit assignment</li>
+</ol>`;
+            }
+
+            html += `
+<h3>RMIT Electronic Submission of Work For Assessment</h3>
+<p>I declare that in submitting all work for this assessment I have read, understood and agree to the content and expectations of the&nbsp;<a class="external" href="https://www.rmit.edu.au/students/student-essentials/assessment-and-exams/assessment/assessment-declaration" target="_blank" rel="noopener">Assessment declaration</a><span style="color: var(--ic-brand-font-color-dark); font-family: inherit; font-size: 1rem;">&nbsp;</span></p>
+</div>
+<p class="narrow-p">&nbsp;</p>
+
+<div id="emble-customise-9aba4b52" class="customise emble emble-cblock emble-width-control fullwidth-on white emble-cblock-boxshadow" data-context-menu="customise delete" data-customise="color-block-shadow color-block-theme cblock-fullwidth dsc-cblock-border-colour dsc-cblock-border-style" data-emble-version="2.0"><details>
+<summary style="cursor: pointer; font-size: 1.4rem; color: #222160; font-family: Helvetica, sans-serif; background-color: #f5f5f5; padding: 10px; margin-bottom: 5px;">Useful Assessment Links&nbsp;</summary>
+<p><span>Please use links below to access important information on assessments:</span><span>&nbsp;</span></p>
+<ul>
+<li><span>Assessment submission and appeals - </span><span><a href="https://www.rmit.edu.au/students/my-course/assessment-results/assessment">Assessments</a></span><span>&nbsp;</span></li>
+<li><span>Extensions and special considerations -&nbsp; </span><span><a href="https://www.rmit.edu.au/students/my-course/assessment-results/special-consideration-extensions/equitable-assessment-arrangements">Extensions and special consideration</a></span><span>&nbsp;</span><span>&nbsp;</span></li>
+<li><span>Equitable Assessment Arrangement (EAA) - </span><span><a href="https://www.rmit.edu.au/students/support-services/equitable-learning">Equitable Assessment Arrangements</a></span><span>&nbsp;</span></li>
+<li><span>Information on recording and retaining assessments and dealing with assessment appeals can be found in the&nbsp;</span><a style="font-size: 1rem; font-family: inherit;" href="https://policies.rmit.edu.au/download.php?associated=1&amp;id=348&amp;version=1">RMIT Assessment Processes document</a></li>
+<li>Information on recognition of prior learning &ndash; <a href="https://www.rmit.edu.au/students/my-course/enrolment/apply-for-credit"><span>RMIT recognition of prior learning (RPL)</span></a></li>
+</ul>
+</details></div>
+<p class="narrow-p">&nbsp;</p>
+
+<div id="emble-customise-75d98739" class="customise emble-columns-container emble-columns-controller-2 emble-columns-stretch-child-height" data-context-menu="customise delete" data-customise="new-columns-arrangement new-columns-border new-columns-padding columns-stretch-children" data-emble-name="Columns" data-emble-version="2.0">
+<div class="emble-columns-child emble-prevent-delete">
+<div id="emble-customise-bf5219ac" class="customise emble emble-cblock emble-width-control fullwidth-on emble-cblock-boxshadow white" data-context-menu="customise delete" data-customise="color-block-shadow color-block-theme cblock-fullwidth dsc-cblock-border-colour dsc-cblock-border-style" data-emble-version="2.0">
+<div id="emble-customise-be5385dd" class="emble-icon small wrap emble-prevent-insert emble-prevent-delete-recursive emble-content-editable-false yellow square" data-context-menu="customise delete" data-customise="icon-shape icon icon-wrap icon-size icon-colour-options" data-emble-name="Icon" data-icon="icon-circle-arrow-down icon-image icon-courses icon-attach-media icon-video icon-edit icon-document icon-pdf icon-audio icon-arrow-end icon-assignment icon-calendar-month icon-chat icon-group icon-flag" data-emble-version="2.0"><i class="icon-info">&nbsp;</i></div>
+<p><span style="font-size: 12pt;"><strong>Task number:</strong> ${data.taskNumber || '<span style="background-color: #fac800;">xxxxx</span>'}</span></p>
+<p><span style="font-size: 12pt;"><strong>National unit code:</strong> ${data.unitCode || '<span style="background-color: #fac800;">xxxxx</span>'}</span></p>
+<p><span style="font-size: 12pt;"><strong>National qualification code:</strong> ${data.qualificationCode || '<span style="background-color: #fac800;">xxxxx</span>'}</span></p>
+<p><span style="font-size: 12pt;"><strong>RMIT program code:</strong>&nbsp; ${data.programCode || '<span style="background-color: #fac800;">xxxxx</span>'}</span></p>
+<p><span style="font-size: 12pt;"><strong>Task name:</strong> ${data.taskName || '<span style="background-color: #fac800;">xxxxx</span>'}</span></p>
+<p><span style="font-size: 12pt;"><strong>National unit title:</strong> ${data.unitTitle || '<span style="background-color: #fac800;">xxxxx</span>'}</span></p>
+<p><span style="font-size: 12pt;"><strong>RMIT course code:</strong> ${data.courseCode || '<span style="background-color: #fac800;">xxxxx</span>'}</span></p>
+</div>
+<p class="narrow-p">&nbsp;</p>
+</div>
+<div class="emble-columns-child emble-prevent-delete">
+<div id="emble-customise-c3025cb3" class="customise emble emble-cblock emble-width-control fullwidth-on white emble-cblock-boxshadow" data-context-menu="customise delete" data-customise="color-block-shadow color-block-theme cblock-fullwidth dsc-cblock-border-colour dsc-cblock-border-style" data-emble-version="2.0">
+<div id="emble-customise-56de29f7" class="emble-icon small wrap emble-prevent-insert emble-prevent-delete-recursive emble-content-editable-false yellow square" data-context-menu="customise delete" data-customise="icon-shape icon icon-wrap icon-size icon-colour-options" data-emble-name="Icon" data-icon="icon-circle-arrow-down icon-image icon-courses icon-attach-media icon-video icon-edit icon-document icon-pdf icon-audio icon-arrow-end icon-assignment icon-calendar-month icon-chat icon-group icon-flag" data-emble-version="2.0"><i class="icon-calendar-month">&nbsp;</i></div>
+<p><strong>Duration/and or due date: <span style="background-color: #fac800;">TEACHER TO UPDATE</span> at 11:59pm</strong></p>
+<p><span style="font-size: 12pt;"><strong>Feedback and Grades:</strong> Feedback on your assignment and your grade will be released via the Grades. Assessment tasks will receive the following outcomes: Satisfactory or Not Satisfactory.</span></p>
+</div>
+<p class="">&nbsp;<span style="color: var(--ic-brand-font-color-dark); font-family: inherit; font-size: 1rem;">&nbsp;</span></p>
+</div>
+</div>
+<p class="narrow-p">&nbsp;</p>`;
+
+            // Display the output
+            document.getElementById('outputContent').textContent = html;
+            document.getElementById('previewContent').innerHTML = html;
+            
+            // Update UI
+            window.converter.updateStep(2, 'completed');
+            window.converter.updateStep(3, 'active');
+            document.getElementById('editForm').style.display = 'none';
+            document.getElementById('outputSection').style.display = 'block';
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+        
+        function copyHTML() {
+            const content = document.getElementById('outputContent').textContent;
+            
+            // Create a temporary textarea for copying
+            const textArea = document.createElement('textarea');
+            textArea.value = content;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            } catch (err) {
+                alert('Please select the text and copy manually (Ctrl+C or Cmd+C)');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+        function backToEdit() {
+            window.converter.updateStep(3, '');
+            window.converter.updateStep(2, 'active');
+            document.getElementById('editForm').style.display = 'block';
+            document.getElementById('outputSection').style.display = 'none';
+        }
+        
+        function resetForm() {
+            if (confirm('Start over with a new document?')) {
+                location.reload();
+            }
+        }
+        
+        // Initialize the converter
+        window.converter = new CanvasConverter();
+        
+        // Add CSS for placeholder effect
+        const style = document.createElement('style');
+        style.textContent = `
+            .rich-editor[data-placeholder]:empty:before {
+                content: attr(data-placeholder);
+                color: #999;
+                position: absolute;
+                pointer-events: none;
+                white-space: pre-line;
+            }
+            
+            .rich-editor:focus[data-placeholder]:empty:before {
+                content: attr(data-placeholder);
+                color: #ccc;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
