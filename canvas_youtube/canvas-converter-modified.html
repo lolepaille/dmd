@@ -877,59 +877,84 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(resultHtml.value, "text/html");
                     const tables = doc.querySelectorAll("table");
+                    // Extract and bulletize Equipment/Resources Students Must Supply from column 1 of row 9
                     let studentSuppliesText = "";
                     if (tables.length > 1) {
                       const table2 = tables[1];
                       if (table2.rows.length >= 9) {
-                            const cellHtml = table2.rows[8].cells[0].innerHTML;
-                            const tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = cellHtml;
-                            // First, detect existing list items
-                            const liElements = Array.from(tempDiv.querySelectorAll('li')).map(li => li.textContent.trim()).filter(text => text);
-                            if (liElements.length) {
-                                studentSuppliesText = liElements.join('\n');
-                            } else {
-                                // Fallback to paragraphs
-                                const paras = Array.from(tempDiv.querySelectorAll('p')).map(p => p.textContent.trim()).filter(p => p);
-                                if (paras.length) {
-                                    studentSuppliesText = paras.join('\n');
-                                } else {
-                                    // Final fallback to plaintext
-                                    studentSuppliesText = table2.rows[8].cells[0].innerText.trim();
-                                }
-                            }
+                          // Get cell HTML and parse
+                          const cellHtml = table2.rows[8].cells[0].innerHTML;
+                          const tempDiv = document.createElement('div');
+                          tempDiv.innerHTML = cellHtml;
+                          // 1) Detect any <li> items
+                          const liElements = Array.from(tempDiv.querySelectorAll('li'))
+                              .map(li => li.textContent.trim())
+                              .filter(text => text);
+                          if (liElements.length) {
+                              // Use all list items
+                              studentSuppliesText = liElements.join('\n');
+                          } else {
+                              // 2) Detect <p> paragraphs
+                              const paras = Array.from(tempDiv.querySelectorAll('p'))
+                                  .map(p => p.textContent.trim())
+                                  .filter(text => text);
+                              if (paras.length) {
+                                  studentSuppliesText = paras.join('\n');
+                              } else {
+                                  // 3) Final fallback: use innerText
+                                  studentSuppliesText = table2.rows[8].cells[0].innerText.trim();
+                              }
+                          }
                       }
                     }
                     // Convert each line into a bullet point
                     const lines = studentSuppliesText.split('\n').map(line => line.trim()).filter(line => line);
                     studentSuppliesText = lines.map(line => '- ' + line).join('\n');
 
-                    // Extract and bulletize RMIT-provided resources from column 2 of the same row
+                    // ─────────────── Extract RMIT Supplies ───────────────
                     let rmitSuppliesText = "";
                     if (tables.length > 1) {
                       const table2 = tables[1];
                       if (table2.rows.length >= 9) {
-                            const cellHtml2 = table2.rows[8].cells[1].innerHTML;
-                            const tempDiv2 = document.createElement('div');
-                            tempDiv2.innerHTML = cellHtml2;
-                            // First, detect existing list items
-                            const liElements2 = Array.from(tempDiv2.querySelectorAll('li')).map(li => li.textContent.trim()).filter(text => text);
-                            if (liElements2.length) {
-                                rmitSuppliesText = liElements2.join('\n');
-                            } else {
-                                // Fallback to paragraphs
-                                const paras2 = Array.from(tempDiv2.querySelectorAll('p')).map(p => p.textContent.trim()).filter(p => p);
-                                if (paras2.length) {
-                                    rmitSuppliesText = paras2.join('\n');
-                                } else {
-                                    // Final fallback to plaintext
-                                    rmitSuppliesText = table2.rows[8].cells[1].innerText.trim();
-                                }
-                            }
+                        // 1) Grab the raw HTML of cell (row 9, col 2)
+                        const cellHtml2 = table2.rows[8].cells[1].innerHTML;
+                        const tempDiv2 = document.createElement('div');
+                        tempDiv2.innerHTML = cellHtml2;
+
+                        // 2) Look for existing <li> tags
+                        const liElements2 = Array.from(
+                          tempDiv2.querySelectorAll('li')
+                        ).map(li => li.textContent.trim())
+                         .filter(text => text);
+
+                        if (liElements2.length > 1) {
+                          // Drop the first combined list item
+                          rmitSuppliesText = liElements2.slice(1).join('\n');
+                        } else if (liElements2.length === 1) {
+                          rmitSuppliesText = liElements2[0];
+                        } else {
+                          // 3) Otherwise, fall back to all <p> paragraphs
+                          const paras2 = Array.from(
+                            tempDiv2.querySelectorAll('p')
+                          ).map(p => p.textContent.trim())
+                           .filter(text => text);
+
+                          if (paras2.length) {
+                            // If multiple <p> tags, join them with "\n"
+                            rmitSuppliesText = paras2.join('\n');
+                          } else {
+                            // 4) Final fallback: take the cell’s raw innerText
+                            rmitSuppliesText = table2.rows[8].cells[1].innerText.trim();
+                          }
+                        }
                       }
                     }
-                    // Convert each line into a bullet point for RMIT supplies
-                    const rmitLines = rmitSuppliesText.split('\n').map(line => line.trim()).filter(line => line);
+
+                    // 5) Prefix each line with "- " so populateForm() can build a <ul>
+                    const rmitLines = rmitSuppliesText
+                      .split('\n')
+                      .map(line => line.trim())
+                      .filter(line => line);
                     rmitSuppliesText = rmitLines.map(line => '- ' + line).join('\n');
 
                     // Populate extractedData
@@ -1027,10 +1052,7 @@
                     }
                 }
                 
-                // NOTE: Extraction of Equipment/Resources Students Must Supply and fallback logic removed as per instructions.
-                // (Removed: Extraction of RMIT supplies block and setting data.rmitSupplies.)
-                
-                // Extract Submission Instructions from "Instructions on submitting" up to the next blank line
+        
                 const submissionMatch = text.match(/Instructions\s*on\s*submitting[^\n]*[:\-]*\s*([\s\S]*?)(?=\n\s*\n|$)/i);
                 if (submissionMatch) {
                     // Capture all lines until a blank line, then join into a single string
