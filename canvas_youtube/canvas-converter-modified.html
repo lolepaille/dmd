@@ -652,10 +652,10 @@
                                         <button type="button" class="editor-btn" onclick="formatText('bold')" title="Bold">B</button>
                                         <button type="button" class="editor-btn" onclick="formatText('italic')" title="Italic">I</button>
                                         <button type="button" class="editor-btn" onclick="formatText('insertUnorderedList')" title="Bullet List">• List</button>
-                                        <button type="button" class="editor-btn" onclick="formatText('insertOrderedList')" title="Numbered List">1. List</button>
+                                        
                                     </div>
                                     <div id="taskInstructions" class="rich-editor" contenteditable="true" data-placeholder="Copy from Summary and Purpose of Assessment (consider the first paragraph of 'what')."></div>
-                                    <p class="help-text">The main instructions for the assessment task (includes what students need to do)</p>
+                                    <p class="help-text">Is this a satisfactory summary? Do you need to include any other important information from the student version of the task?</p>
                                 </div>
                                 
                                 <div class="checkbox-group">
@@ -674,7 +674,7 @@
                                         <button type="button" class="editor-btn" onclick="formatText('bold', 'conditions')" title="Bold">B</button>
                                         <button type="button" class="editor-btn" onclick="formatText('italic', 'conditions')" title="Italic">I</button>
                                         <button type="button" class="editor-btn" onclick="formatText('insertUnorderedList', 'conditions')" title="Bullet List">• List</button>
-                                        <button type="button" class="editor-btn" onclick="formatText('insertOrderedList', 'conditions')" title="Numbered List">1. List</button>
+                                       
                                     </div>
                                     <div id="conditions" class="rich-editor" contenteditable="true" data-placeholder="Copy from Conditions for assessment section (do not include duplicate useful links if they are present)."></div>
                                 </div>
@@ -869,13 +869,78 @@
                 
                 try {
                     const arrayBuffer = await file.arrayBuffer();
-                    const result = await mammoth.extractRawText({arrayBuffer});
-                    
-                    this.extractedData = this.extractContent(result.value);
+                    // Extract raw text
+                    const resultRaw = await mammoth.extractRawText({arrayBuffer});
+                    // Extract HTML to parse tables
+                    const resultHtml = await mammoth.convertToHtml({arrayBuffer});
+                    // Parse HTML to find tables
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(resultHtml.value, "text/html");
+                    const tables = doc.querySelectorAll("table");
+                    let studentSuppliesText = "";
+                    if (tables.length > 1) {
+                      const table2 = tables[1];
+                      if (table2.rows.length >= 9) {
+                            const cellHtml = table2.rows[8].cells[0].innerHTML;
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = cellHtml;
+                            // First, detect existing list items
+                            const liElements = Array.from(tempDiv.querySelectorAll('li')).map(li => li.textContent.trim()).filter(text => text);
+                            if (liElements.length) {
+                                studentSuppliesText = liElements.join('\n');
+                            } else {
+                                // Fallback to paragraphs
+                                const paras = Array.from(tempDiv.querySelectorAll('p')).map(p => p.textContent.trim()).filter(p => p);
+                                if (paras.length) {
+                                    studentSuppliesText = paras.join('\n');
+                                } else {
+                                    // Final fallback to plaintext
+                                    studentSuppliesText = table2.rows[8].cells[0].innerText.trim();
+                                }
+                            }
+                      }
+                    }
+                    // Convert each line into a bullet point
+                    const lines = studentSuppliesText.split('\n').map(line => line.trim()).filter(line => line);
+                    studentSuppliesText = lines.map(line => '- ' + line).join('\n');
+
+                    // Extract and bulletize RMIT-provided resources from column 2 of the same row
+                    let rmitSuppliesText = "";
+                    if (tables.length > 1) {
+                      const table2 = tables[1];
+                      if (table2.rows.length >= 9) {
+                            const cellHtml2 = table2.rows[8].cells[1].innerHTML;
+                            const tempDiv2 = document.createElement('div');
+                            tempDiv2.innerHTML = cellHtml2;
+                            // First, detect existing list items
+                            const liElements2 = Array.from(tempDiv2.querySelectorAll('li')).map(li => li.textContent.trim()).filter(text => text);
+                            if (liElements2.length) {
+                                rmitSuppliesText = liElements2.join('\n');
+                            } else {
+                                // Fallback to paragraphs
+                                const paras2 = Array.from(tempDiv2.querySelectorAll('p')).map(p => p.textContent.trim()).filter(p => p);
+                                if (paras2.length) {
+                                    rmitSuppliesText = paras2.join('\n');
+                                } else {
+                                    // Final fallback to plaintext
+                                    rmitSuppliesText = table2.rows[8].cells[1].innerText.trim();
+                                }
+                            }
+                      }
+                    }
+                    // Convert each line into a bullet point for RMIT supplies
+                    const rmitLines = rmitSuppliesText.split('\n').map(line => line.trim()).filter(line => line);
+                    rmitSuppliesText = rmitLines.map(line => '- ' + line).join('\n');
+
+                    // Populate extractedData
+                    this.extractedData = this.extractContent(resultRaw.value);
+                    // Assign the student supplies from table 2, row 9 col 1
+                    this.extractedData.studentSupplies = studentSuppliesText;
+                    // Assign the RMIT-provided resources from table 2, row 9 col 2
+                    this.extractedData.rmitSupplies = rmitSuppliesText;
                     this.displayExtractionStatus();
                     this.populateForm();
                     this.showEditForm();
-                    
                 } catch (error) {
                     console.error('Error:', error);
                     alert('Error processing document. Please try again.');
@@ -951,50 +1016,19 @@
                     data.taskInstructions = taskInstrMatch[1].trim().replace(/\s+/g, ' ');
                 }
                 
-                // Extract conditions from "Conditions for assessment" up to the next section, strip links, enforce bullets
+                // Extract conditions from "Conditions for assessment" up to the next section, preserve all lines, enforce bullets
                 const conditionsMatch = text.match(/Conditions\s*for\s*assessment\s*([\s\S]*?)(?=(?:Instructions\s*on\s*submitting|Equipment\/resources|$))/i);
                 if (conditionsMatch) {
-                    let lines = conditionsMatch[1].trim().split('\n');
-                    // Remove any URLs and whitespace, then filter out empty lines
-                    let bullets = lines
-                        .map(line => line.replace(/https?:\/\/\S+/g, '').trim())
-                        .filter(line => line);
-                    // Ensure each line starts with a dash
-                    bullets = bullets.map(line => line.startsWith('-') ? line : '- ' + line);
+                    let lines = conditionsMatch[1].trim().split('\n').map(line => line.trim()).filter(line => line);
+                    // Ensure each line starts with a dash; preserve any URLs/link text
+                    const bullets = lines.map(line => line.startsWith('-') ? line : '- ' + line);
                     if (bullets.length) {
                         data.conditions = bullets.join('\n');
                     }
                 }
                 
-                // Extract Equipment/Resources Students Must Supply from the cell after "Equipment/resources students must supply (if applicable):"
-                const studentSuppliesMatch = text.match(/Equipment\/resources\s*students\s*must\s*supply\s*\(if applicable\):\s*([\s\S]*?)(?=(?:Equipment\/resources\s*to\s*be\s*provided|Submission|$))/i);
-                if (studentSuppliesMatch) {
-                    let lines = studentSuppliesMatch[1].trim().split(/\r?\n/);
-                    // Remove any URLs and whitespace, then filter out lines with actual content
-                    let bullets = lines
-                        .map(line => line.replace(/https?:\/\/\S+/g, '').trim())
-                        .filter(line => line);
-                    // Prefix each line with a bullet symbol
-                    bullets = bullets.map(line => line.startsWith('•') ? line : '• ' + line);
-                    if (bullets.length) {
-                        data.studentSupplies = bullets.join('\n');
-                    }
-                }
-
-                // Extract Equipment/Resources Provided by RMIT or the workplace (if applicable)
-                const rmitSuppliesMatch = text.match(/Equipment\/resources\s*to\s*be\s*provided\s*by\s*RMIT\s*or\s*the\s*workplace\s*\(if applicable\):\s*([\s\S]*?)(?=(?:Section\s*B|$))/i);
-                if (rmitSuppliesMatch) {
-                    let lines = rmitSuppliesMatch[1].trim().split(/\r?\n/);
-                    // Remove any URLs and whitespace, then filter out empty lines
-                    let bullets = lines
-                        .map(line => line.replace(/https?:\/\/\S+/g, '').replace(/^[\s\-\u2022]+/, '').trim())
-                        .filter(line => line);
-                    // Prefix each line with a bullet symbol
-                    bullets = bullets.map(line => '• ' + line);
-                    if (bullets.length) {
-                        data.rmitSupplies = bullets.join('\n');
-                    }
-                }
+                // NOTE: Extraction of Equipment/Resources Students Must Supply and fallback logic removed as per instructions.
+                // (Removed: Extraction of RMIT supplies block and setting data.rmitSupplies.)
                 
                 // Extract Submission Instructions from "Instructions on submitting" up to the next blank line
                 const submissionMatch = text.match(/Instructions\s*on\s*submitting[^\n]*[:\-]*\s*([\s\S]*?)(?=\n\s*\n|$)/i);
@@ -1022,6 +1056,8 @@
                               lowerText.includes('conducted via canvas');
                 data.assessmentType = isQuiz ? 'quiz' : '';
                 
+                // (Removed: Populate "Equipment/Resources Students Must Supply" from 11th cell of raw text if available)
+                
                 return data;
             }
             
@@ -1031,32 +1067,32 @@
                 
                 // Check what was found
                 status.push({
-                    icon: data.taskNumber ? 'found' : 'missing',
+                    icon: data.taskNumber && data.taskNumber.trim() ? 'found' : 'missing',
                     text: 'Task Number'
                 });
                 
                 status.push({
-                    icon: data.taskName ? 'found' : 'missing',
+                    icon: data.taskName && data.taskName.trim() ? 'found' : 'missing',
                     text: 'Task Name'
                 });
                 
                 status.push({
-                    icon: data.taskInstructions ? 'found' : 'missing',
+                    icon: data.taskInstructions && data.taskInstructions.trim() ? 'found' : 'missing',
                     text: 'Task Instructions'
                 });
                 
                 status.push({
-                    icon: data.unitCode ? 'found' : 'missing',
+                    icon: data.unitCode && data.unitCode.trim() ? 'found' : 'missing',
                     text: 'Unit Code'
                 });
                 
                 status.push({
-                    icon: data.conditions ? 'found' : 'missing',
+                    icon: data.conditions && data.conditions.trim() ? 'found' : 'missing',
                     text: 'Assessment Conditions'
                 });
                 
                 status.push({
-                    icon: (data.studentSupplies || data.rmitSupplies) ? 'found' : 'missing',
+                    icon: (data.studentSupplies && data.studentSupplies.trim()) || (data.rmitSupplies && data.rmitSupplies.trim()) ? 'found' : 'missing',
                     text: 'Equipment/Resources'
                 });
                 
@@ -1075,8 +1111,11 @@
             
             populateForm() {
                 const data = this.extractedData;
+                // (Removed: hardcoded studentSupplies assignment)
                 const form = document.getElementById('assessmentForm');
-                
+
+                // (Fallback logic removed as per instructions)
+
                 // Populate text fields
                 ['taskNumber', 'taskName', 'unitCode', 'unitTitle', 'qualificationCode', 'programCode', 'courseCode'].forEach(field => {
                     if (form.elements[field] && data[field]) {
