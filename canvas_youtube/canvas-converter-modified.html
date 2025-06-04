@@ -840,7 +840,36 @@
                 // File upload
                 this.uploadArea.addEventListener('click', () => this.fileInput.click());
                 this.fileInput.addEventListener('change', (e) => this.handleFile(e.target.files[0]));
-                
+
+                // When quiz is selected, populate Task Instructions field
+                const assessmentTypeSelect = document.getElementById('assessmentType');
+                assessmentTypeSelect.addEventListener('change', (e) => {
+                    if (e.target.value === 'quiz' && this.extractedData.taskInstructions) {
+                        // Convert raw taskInstructions lines into HTML list or paragraphs
+                        let content = this.extractedData.taskInstructions;
+                        if (content.includes('\n-') || content.startsWith('-')) {
+                            const items = content.split('\n')
+                                .filter(line => line.trim())
+                                .map(line => line.replace(/^-\s*/, '').trim());
+                            content = '<ul>' + items.map(item => `<li>${item}</li>`).join('') + '</ul>';
+                        } else {
+                            content = content.split('\n')
+                                .filter(line => line.trim())
+                                .map(line => `<p>${line}</p>`)
+                                .join('');
+                        }
+                        const editor = document.getElementById('taskInstructions');
+                        editor.innerHTML = content;
+                        editor.innerHTML += `
+            <strong>What</strong>
+            <p>You are required to answer all questions, in full, correctly.</p>
+            <strong>Where</strong>
+            <p>This assessment will be conducted via Canvas and completed online. Your assessor will advise you of the location.</p>
+          `;
+                        editor.classList.remove('empty');
+                    }
+                });
+
                 // Drag and drop
                 this.uploadArea.addEventListener('dragover', (e) => {
                     e.preventDefault();
