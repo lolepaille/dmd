@@ -1207,8 +1207,12 @@
         // Global functions
         function generateHTML() {
             const form = document.getElementById('assessmentForm');
-            const selectedType = form.elements.assessmentType.value;
+            // Clear any previous error styling on assessmentType select
+            const assessmentSelect = form.elements.assessmentType;
+            assessmentSelect.style.border = '';
+            const selectedType = assessmentSelect.value;
             if (!selectedType) {
+                assessmentSelect.style.border = '2px solid red';
                 alert('Please select an assessment type.');
                 return;
             }
@@ -1405,6 +1409,14 @@ ${data.submissionInstructions ? `<p>${data.submissionInstructions}</p>` : '<p><s
         
         // Initialize the converter
         window.converter = new CanvasConverter();
+
+        // Add event listener to assessmentType select to clear error styling on change
+        const assessmentSelectEl = document.getElementById('assessmentType');
+        if (assessmentSelectEl) {
+            assessmentSelectEl.addEventListener('change', () => {
+                assessmentSelectEl.style.border = '';
+            });
+        }
         
         // Add CSS for placeholder effect
         const style = document.createElement('style');
