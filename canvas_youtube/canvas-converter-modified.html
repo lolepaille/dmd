@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CoVE Canvas Assessment Template Converter - RMIT</title>
-    <script src="mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -906,91 +906,70 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(resultHtml.value, "text/html");
                     const tables = doc.querySelectorAll("table");
-                    // Extract and bulletize Equipment/Resources Students Must Supply from column 1 of row 9
+                    // New extraction logic for Equipment/Resources Students Must Supply and RMIT Supplies
                     let studentSuppliesText = "";
-                    if (tables.length > 1) {
-                      const table2 = tables[1];
-                      if (table2.rows.length >= 9) {
-                          // Get cell HTML and parse
-                          const cellHtml = table2.rows[8].cells[0].innerHTML;
-                          const tempDiv = document.createElement('div');
-                          tempDiv.innerHTML = cellHtml;
-                          // 1) Detect any <li> items
-                          const liElements = Array.from(tempDiv.querySelectorAll('li'))
-                              .map(li => li.textContent.trim())
-                              .filter(text => text);
-                          if (liElements.length) {
-                              // Use all list items
-                              studentSuppliesText = liElements.join('\n');
-                          } else {
-                              // 2) Detect <p> paragraphs
-                              const paras = Array.from(tempDiv.querySelectorAll('p'))
-                                  .map(p => p.textContent.trim())
-                                  .filter(text => text);
-                              if (paras.length) {
-                                  studentSuppliesText = paras.join('\n');
-                              } else {
-                                  // 3) Final fallback: use innerText
-                                  studentSuppliesText = table2.rows[8].cells[0].innerText.trim();
-                              }
-                          }
-                      }
-                    }
-                    // Convert each line into a bullet point
-                    const lines = studentSuppliesText.split('\n').map(line => line.trim()).filter(line => line);
-                    studentSuppliesText = lines.map(line => '- ' + line).join('\n');
-
-                    // ─────────────── Extract RMIT Supplies ───────────────
                     let rmitSuppliesText = "";
-                    if (tables.length > 1) {
-                      const table2 = tables[1];
-                      if (table2.rows.length >= 9) {
-                        // 1) Grab the raw HTML of cell (row 9, col 2)
-                        const cellHtml2 = table2.rows[8].cells[1].innerHTML;
-                        const tempDiv2 = document.createElement('div');
-                        tempDiv2.innerHTML = cellHtml2;
-
-                        // 2) Look for existing <li> tags
-                        const liElements2 = Array.from(
-                          tempDiv2.querySelectorAll('li')
-                        ).map(li => li.textContent.trim())
-                         .filter(text => text);
-
-                        if (liElements2.length > 1) {
-                          // Drop the first combined list item
-                          rmitSuppliesText = liElements2.slice(1).join('\n');
-                        } else if (liElements2.length === 1) {
-                          rmitSuppliesText = liElements2[0];
-                        } else {
-                          // 3) Otherwise, fall back to all <p> paragraphs
-                          const paras2 = Array.from(
-                            tempDiv2.querySelectorAll('p')
-                          ).map(p => p.textContent.trim())
-                           .filter(text => text);
-
-                          if (paras2.length) {
-                            // If multiple <p> tags, join them with "\n"
-                            rmitSuppliesText = paras2.join('\n');
-                          } else {
-                            // 4) Final fallback: take the cell’s raw innerText
-                            rmitSuppliesText = table2.rows[8].cells[1].innerText.trim();
+                    outerLoop:
+                    for (const table of tables) {
+                      for (let i = 0; i < table.rows.length; i++) {
+                        const row = table.rows[i];
+                        if (row.cells.length >= 2) {
+                          const cell0 = row.cells[0].textContent.trim().toLowerCase();
+                          const cell1 = row.cells[1].textContent.trim();
+                          if (
+                            cell0 === "equipment/resources students must supply (if applicable):".toLowerCase() &&
+                            cell1 === "Equipment/resources to be provided by RMIT or the workplace (if applicable):"
+                          ) {
+                            // Found the header row
+                            if (i + 1 < table.rows.length) {
+                              const contentRow = table.rows[i + 1];
+                              // Extract studentSuppliesText from contentRow.cells[0]
+                              let tempDivA = document.createElement('div');
+                              tempDivA.innerHTML = contentRow.cells[0].innerHTML;
+                              let liA = Array.from(tempDivA.querySelectorAll('li')).map(li => li.textContent.trim()).filter(Boolean);
+                              if (liA.length) {
+                                studentSuppliesText = liA.join('\n');
+                              } else {
+                                let parasA = Array.from(tempDivA.querySelectorAll('p')).map(p => p.textContent.trim()).filter(Boolean);
+                                if (parasA.length) {
+                                  studentSuppliesText = parasA.join('\n');
+                                } else {
+                                  studentSuppliesText = contentRow.cells[0].innerText.trim();
+                                }
+                              }
+                              // Extract rmitSuppliesText from contentRow.cells[1]
+                              let tempDivB = document.createElement('div');
+                              tempDivB.innerHTML = contentRow.cells[1].innerHTML;
+                              let liB = Array.from(tempDivB.querySelectorAll('li')).map(li => li.textContent.trim()).filter(Boolean);
+                              if (liB.length) {
+                                rmitSuppliesText = liB.join('\n');
+                              } else {
+                                let parasB = Array.from(tempDivB.querySelectorAll('p')).map(p => p.textContent.trim()).filter(Boolean);
+                                if (parasB.length) {
+                                  rmitSuppliesText = parasB.join('\n');
+                                } else {
+                                  rmitSuppliesText = contentRow.cells[1].innerText.trim();
+                                }
+                              }
+                            }
+                            break outerLoop;
                           }
                         }
                       }
                     }
-
-                    // 5) Prefix each line with "- " so populateForm() can build a <ul>
-                    const rmitLines = rmitSuppliesText
-                      .split('\n')
-                      .map(line => line.trim())
-                      .filter(line => line);
-                    rmitSuppliesText = rmitLines.map(line => '- ' + line).join('\n');
-
+                    // Prefix each extracted line with "- " to prepare for bulleted HTML
+                    if (studentSuppliesText) {
+                      const lines = studentSuppliesText.split('\n').map(line => line.trim()).filter(Boolean);
+                      studentSuppliesText = lines.map(line => '- ' + line).join('\n');
+                    }
+                    if (rmitSuppliesText) {
+                      const lines = rmitSuppliesText.split('\n').map(line => line.trim()).filter(Boolean);
+                      rmitSuppliesText = lines.map(line => '- ' + line).join('\n');
+                    }
                     // Populate extractedData
                     this.extractedData = this.extractContent(resultRaw.value);
-                    // Assign the student supplies from table 2, row 9 col 1
+                    // Assign the extracted supplies
                     this.extractedData.studentSupplies = studentSuppliesText;
-                    // Assign the RMIT-provided resources from table 2, row 9 col 2
                     this.extractedData.rmitSupplies = rmitSuppliesText;
                     this.displayExtractionStatus();
                     this.populateForm();
